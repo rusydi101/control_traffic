@@ -1,0 +1,23 @@
+version: "3.7"
+services:
+
+
+    backend.java_traffic:
+        build: .
+        command: python mqtt.py
+        volumes:
+            - .:/code
+        networks:
+            - default
+        container_name: java_traffic
+        restart: always
+        logging:
+          options:
+            max-size: 10m
+
+networks:
+  default:
+    external:
+      name: phpmyadmin_default
+  web:
+    external: true # For traefik
