@@ -1,9 +1,12 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
+from pymemcache.client.base import Client
+from ast import literal_eval
 import paho.mqtt.client as paho
 import ssl, time, logging
 import apu_tcp_service as tcp
+import config_setup as cf
 import binascii, json
 
 MQTT_HOST = "broker.react.net.my"
@@ -12,6 +15,7 @@ MQTT_USERNAME = '2sa34dd5'
 MQTT_PASS = '2sa34dd5'
 
 MQTT_SUB_TOPIC = "raw/300"
+# MQTT_SUB_TOPIC = "v1/gateway/telemetry"
 
 logging.basicConfig(level=logging.DEBUG,
                         format='%(asctime)s %(levelname)s: %(message)s',
@@ -25,15 +29,49 @@ def subs(client, userdata, message):
     # data = binascii.a2b_hex(data)
     # jdata = json.loads(data)
     # for key in jdata.keys():
-    #     if key == "JKR-SEL-006":
+    #     if key == "BILIK-HAFIZ-IOT":
     #         print(jdata)
     # print('data',len(data))
+
+    end = data[56:]
+    
+    junction_id = binascii.unhexlify(end[16:80]).decode('utf-8')
+    junction_id = junction_id.replace('\u0000','')
+
+    if (' ' in junction_id) == True:
+        pass
+
+    client = Client('localhost')
+    
     try:
+        # set_memcache(client,junction_id)
+        # print('set memcache')
+        # if client.get('phase_route_'+str(junction_id)):
+        #     client.set('phase_route_'+str(junction_id), cf.phase_route)
+        # if client.get('inp_data_'+str(junction_id)):
+        #     client.set('inp_data_'+str(junction_id), cf.inp_data)
+        # if client.get('phase_info_'+str(junction_id)):
+        #     client.set('phase_info_'+str(junction_id), cf.phase_info)
+        # if client.get('count_data_'+str(junction_id)):
+        #     client.set('count_data_'+str(junction_id), cf.count_data)
+        # if client.get('group_data_'+str(junction_id)):
+        #     client.set('group_data_'+str(junction_id), cf.group_data)
+        # if client.get('faults_'+str(junction_id)):
+        #     client.set('faults_'+str(junction_id), cf.faults)
+            
         tcp.tcp_handle_byte(data)
+
     except Exception as msg:
         print("Caught error: %s",msg)
         logging.info("Caught error: %s" % msg)
-    
+
+def set_memcache(client,junction_id):
+    client.set('phase_route_'+str(junction_id), cf.phase_route)
+    client.set('inp_data_'+str(junction_id), cf.inp_data)
+    client.set('phase_info_'+str(junction_id), cf.phase_info)
+    client.set('count_data_'+str(junction_id), cf.count_data)
+    client.set('group_data_'+str(junction_id), cf.group_data)
+    client.set('faults_'+str(junction_id), cf.faults)    
 
 
 def on_connect(client, userdata, flags, rc):

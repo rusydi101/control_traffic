@@ -5,13 +5,18 @@ import logging, json
 import config_setup as cf
 import trigger_phase as t
 import mqtt_service as mq
+from ast import literal_eval
+from pymemcache.client.base import Client
+client = Client('localhost')
 
 def group_info(temp):
 
     data=temp[41:53]
+    junction=temp[8:39].decode('utf-8').replace('\x00','')
     # print(len(temp))
     # print(len(data))
-
+    mem = literal_eval(client.get('group_data_'+str(junction)).decode('utf-8'))
+    # print('mem',mem)
     valueObj = {}
     values1 = {
         "G_1" : data[0]  & 0x0F,"G_2" : data[0]  >> 4,"G_3" : data[1]  & 0x0F,"G_4" : data[1]  >> 4,
@@ -22,10 +27,17 @@ def group_info(temp):
         "G_21": data[10] & 0x0F,"G_22": data[10] >> 4,"G_23": data[11] & 0x0F,"G_24": data[11] >> 4,
     }
 
-    for values in cf.group_data:
-        if cf.group_data[values] != values1[values]:
-            cf.group_data[values]=values1[values]
-            valueObj[values] = values1[values]
+    # for values in cf.group_data:
+    #     if cf.group_data[values] != values1[values]:
+    #         cf.group_data[values]=values1[values]
+    #         valueObj[values] = values1[values]
+
+    for key, value in mem.items():
+        if value != values1[key]:
+            mem.update({key:values1[key]})
+            client.set('group_data_'+str(junction),mem)
+            valueObj[key] = values1[key]
+    
 
     if valueObj != {}:
         logging.debug(valueObj)
@@ -36,7 +48,8 @@ def group_info(temp):
 def count_info(temp):
 
     data=temp[53:81]
-
+    junction=temp[8:39].decode('utf-8').replace('\x00','')
+    mem = literal_eval(client.get('count_data_'+str(junction)).decode('utf-8'))
     valueObj={}
 
     values1 = {
@@ -56,10 +69,16 @@ def count_info(temp):
         "CNT_TYPE_14":data[26],"CNT_VAL_14" :data[27],
     }
 
-    for values in cf.count_data:
-        if cf.count_data[values] != values1[values]:
-            cf.count_data[values]=values1[values]
-            valueObj[values] = values1[values]
+    # for values in cf.count_data:
+    #     if cf.count_data[values] != values1[values]:
+    #         cf.count_data[values]=values1[values]
+    #         valueObj[values] = values1[values]
+    
+    for key, value in mem.items():
+        if value != values1[key]:
+            mem.update({key:values1[key]})
+            client.set('count_data_'+str(junction),mem)
+            valueObj[key] = values1[key]
 
     if valueObj != {}:
         logging.debug(valueObj)
@@ -67,6 +86,10 @@ def count_info(temp):
 
 def phase_info(temp):
     data = temp[88:96]
+    junction=temp[8:39].decode('utf-8').replace('\x00','')
+    
+    p_info = literal_eval(client.get('phase_info_'+str(junction)).decode('utf-8'))
+    p_route = literal_eval(client.get('phase_route_'+str(junction)).decode('utf-8'))
 
     phase = data[0]
     timing = data[1]
@@ -78,7 +101,8 @@ def phase_info(temp):
     err = data[5]
     gap = data[6]
     act = data[7]
-    route = cf.phase_route[phase]
+    # route = cf.phase_route[phase]
+    route = p_route[phase]
 
     valuei = {
         "Phase"   : phase,
@@ -95,43 +119,79 @@ def phase_info(temp):
 
     valueObj = {}
 
-    if cf.phase_data["Phase"] != valuei["Phase"]:
-        cf.phase_data["Phase"] = valuei["Phase"]
+    if p_info["Phase"] != valuei["Phase"]:
+        p_info.update({"Phase":valuei["Phase"]})
         valueObj["Phase"] = valuei["Phase"]
 
-        cf.phase_data["Time"] = valuei["Time"]
+        p_info.update({"Time":valuei["Time"]})
         valueObj["Time"] = valuei["Time"]
 
-        cf.phase_data["Mode"] = valuei["Mode"]
+        p_info.update({"Mode":valuei["Mode"]})
         valueObj["Mode"] = valuei["Mode"]
 
-        cf.phase_data["Max"]= valuei["Max"]
+        p_info.update({"Max":valuei["Max"]})
         valueObj["Max"] = valuei["Max"]
 
-        cf.phase_data["Min"] = valuei["Min"]
+        p_info.update({"Min":valuei["Min"]})
         valueObj["Min"] = valuei["Min"]
 
-        cf.phase_data["RunErr"] = valuei["RunErr"]
+        p_info.update({"RunErr":valuei["RunErr"]})
         valueObj["RunErr"] = valuei["RunErr"]
 
-    if cf.phase_data["Mode"] != valuei["Mode"] :
-        cf.phase_data["Mode"] = valuei["Mode"]
+    if p_info["Mode"] != valuei["Mode"]:
+        p_info.update({"Mode":valuei["Mode"]})
         valueObj["Mode"] = valuei["Mode"]
 
-    if cf.phase_data["Gap"] != valuei["Gap"] :
-        cf.phase_data["Gap"] = valuei["Gap"]
+    if p_info["Gap"] != valuei["Gap"]:
+        p_info.update({"Gap":valuei["Gap"]})
         valueObj["Gap"] = valuei["Gap"]
 
-    if cf.phase_data["Actual"] != valuei["Actual"] :
-        cf.phase_data["Actual"] = valuei["Actual"]
+    if p_info["Actual"] != valuei["Actual"]:
+        p_info.update({"Actual":valuei["Actual"]})
         valueObj["Actual"] = valuei["Actual"]
 
-    if cf.phase_data["Route"] != valuei["Route"] :
-        cf.phase_data["Route"] = valuei["Route"]
+    if str(p_info["Route"]) != valuei["Route"]:
+        p_info.update({"Route":valuei["Route"]})
         valueObj["Route"] = valuei["Route"]
 
 
-    cf.phase_info = valuei
+    # if cf.phase_data["Phase"] != valuei["Phase"]:
+    #     cf.phase_data["Phase"] = valuei["Phase"]
+    #     valueObj["Phase"] = valuei["Phase"]
+
+    #     cf.phase_data["Time"] = valuei["Time"]
+    #     valueObj["Time"] = valuei["Time"]
+        
+    #     cf.phase_data["Mode"] = valuei["Mode"]
+    #     valueObj["Mode"] = valuei["Mode"]
+        
+    #     cf.phase_data["Max"]= valuei["Max"]
+    #     valueObj["Max"] = valuei["Max"]
+        
+    #     cf.phase_data["Min"] = valuei["Min"]
+    #     valueObj["Min"] = valuei["Min"]
+        
+    #     cf.phase_data["RunErr"] = valuei["RunErr"]
+    #     valueObj["RunErr"] = valuei["RunErr"]
+
+    # if cf.phase_data["Mode"] != valuei["Mode"] :
+    #     cf.phase_data["Mode"] = valuei["Mode"]
+    #     valueObj["Mode"] = valuei["Mode"]
+
+    # if cf.phase_data["Gap"] != valuei["Gap"] :
+    #     cf.phase_data["Gap"] = valuei["Gap"]
+    #     valueObj["Gap"] = valuei["Gap"]
+
+    # if cf.phase_data["Actual"] != valuei["Actual"] :
+    #     cf.phase_data["Actual"] = valuei["Actual"]
+    #     valueObj["Actual"] = valuei["Actual"]
+
+    # if cf.phase_data["Route"] != valuei["Route"] :
+    #     cf.phase_data["Route"] = valuei["Route"]
+    #     valueObj["Route"] = valuei["Route"]
+    
+    # cf.phase_info = valuei
+    client.set('phase_info_'+str(junction),p_info)
     #print(c.phase_info)
 
     if valueObj != {}:
@@ -147,6 +207,8 @@ def phase_info(temp):
 def input_info(temp):
 
     inps = temp[106:112]
+    junction=temp[8:39].decode('utf-8').replace('\x00','')
+    mem = literal_eval(client.get('inp_data_'+str(junction)).decode('utf-8'))
     k=[0]*24
 
     # detect
@@ -186,10 +248,16 @@ def input_info(temp):
         "PED_21": k[20],"PED_22": k[21],"PED_23": k[22],"PED_24": k[23],
     }
 
-    for values in cf.inp_data:
-        if cf.inp_data[values] != values1[values]:
-            cf.inp_data[values]=values1[values]
-            valueObj[values] = values1[values]
+    # for values in cf.inp_data:
+    #     if cf.inp_data[values] != values1[values]:
+    #         cf.inp_data[values]=values1[values]
+    #         valueObj[values] = values1[values]
+
+    for key, value in mem.items():
+        if value != values1[key]:
+            mem.update({key:values1[key]})
+            client.set('inp_data_'+str(junction),mem)
+            valueObj[key] = values1[key]
 
     if valueObj != {}:
         logging.debug(valueObj)
@@ -199,7 +267,8 @@ def input_info(temp):
 def fault_info(temp):
 
     data5=temp[120:169]
-
+    junction=temp[8:39].decode('utf-8').replace('\x00','')
+    mem = literal_eval(client.get('faults_'+str(junction)).decode('utf-8'))
     cardFault = {}
     groupFault = {}
 
@@ -208,9 +277,11 @@ def fault_info(temp):
 
         ptr = i * 6
 
-        if cf.faults[ptr] != data5[ptr]:
-            cf.faults[ptr] = data5[ptr]
-
+        # if cf.faults[ptr] != data5[ptr]:
+        #     cf.faults[ptr] = data5[ptr]
+        if mem[ptr] != data5[ptr]:
+            mem[ptr] = data5[ptr]
+            client.set('faults_'+str(junction),mem)
             if data5[ptr] & 0x0f == 0x00:
                 cardFault["CFAULT_" + str(i + 1)] = 0
             elif data5[ptr] & 0x0f == 0x01:
@@ -222,9 +293,11 @@ def fault_info(temp):
 
         grp = i * 2 + 1
 
-        if cf.faults[ptr + 4] != data5[ptr + 4]:
-            cf.faults[ptr + 4] = data5[ptr + 4]
-
+        # if cf.faults[ptr + 4] != data5[ptr + 4]:
+            # cf.faults[ptr + 4] = data5[ptr + 4]
+        if mem[ptr + 4] != data5[ptr + 4]:
+            mem[ptr + 4] = data5[ptr + 4]
+            client.set('faults_'+str(junction),mem)
             # Group 1 - RED
             if data5[ptr + 4] & 0x01 == 0x01:
                 groupFault["GFAULT_R_" + str(grp)] = 2
@@ -251,9 +324,11 @@ def fault_info(temp):
 
         grp = i * 2 + 2
 
-        if cf.faults[ptr + 5] != data5[ptr + 5]:
-            cf.faults[ptr + 5] = data5[ptr + 5]
-
+        # if cf.faults[ptr + 5] != data5[ptr + 5]:
+        #     cf.faults[ptr + 5] = data5[ptr + 5]
+        if mem[ptr + 5] != data5[ptr + 5]:
+            mem[ptr + 5] = data5[ptr + 5]
+            client.set('faults_'+str(junction),mem)
             # Group 1 - RED
             if data5[ptr + 5] & 0x01 == 0x01:
                 groupFault["GFAULT_R_" + str(grp)] = 2
