@@ -6,7 +6,7 @@ import config_setup as cf
 import paho.mqtt.client as paho
 import mqtt_service as mq
 from ast import literal_eval
-rconn = redis.Redis(host='localhost',port=6379,db=0)
+rconn = redis.Redis(host='my-redis',port=6379,db=0)
 
 MQTT_HOST = "broker.react.net.my"
 MQTT_PORT = 8883
@@ -61,14 +61,14 @@ def count_car(flag,data_i,junction):
             if s_index in data_i and data_i[s_index] != inp_difs[s_index]:
                 # cf.inp_difs[s_index] = data_i[s_index]
                 inp_difs.update({s_index:data_i[s_index]})
-                rconn.set('inp_difs_'+str(junction),inp_difs)
+                rconn.set('inp_difs_'+str(junction),str(inp_difs))
                 if data_i[s_index] == 3:
                     # cf.counters['carCount_' + str(j)] += cf.weight[s_index]
                     # counters['carCount_' + str(j)] = counters['carCount_' + str(j)] + weight[s_index]
                     counters.update({
                         'carCount_'+str(j):counters['carCount_' + str(j)] + weight[s_index]
                         })
-                    rconn.set('counters_'+str(junction),counters)
+                    rconn.set('counters_'+str(junction),str(counters))
                     #print(cf.counters['carCount_' + str(j)])
 
     if flag == 'trigger/phase'+str(junction):
@@ -84,7 +84,7 @@ def count_car(flag,data_i,junction):
             msg[s_index] = round(counters[s_index])
             # cf.counters[s_index]=0
             counters.update({s_index:0})
-            rconn.set('counters_'+str(junction),counters)
+            rconn.set('counters_'+str(junction),str(counters))
             # data_i = {cf.device_id: [{'ts': time.time(), 'values': msg}]}
             data_i = {junction: [{'ts': time.time(), 'values': msg}]}
             # print(data_i)

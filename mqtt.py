@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.DEBUG,
                         filename='service.log'
                         )
 
-rconn = redis.Redis(host='localhost',port=6379, db=0)
+rconn = redis.Redis(host='my-redis',port=6379, db=0)
 
 def subs(client, userdata, message):
     data = message.payload.decode('utf-8')

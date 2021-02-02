@@ -7,7 +7,7 @@ import trigger_phase as t
 import mqtt_service as mq
 from ast import literal_eval
 
-rconn = redis.Redis(host='localhost',port=6379, db=0)
+rconn = redis.Redis(host='my-redis',port=6379, db=0)
 
 def group_info(temp):
 
