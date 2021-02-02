@@ -1,10 +1,9 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-from pymemcache.client.base import Client
 from ast import literal_eval
 import paho.mqtt.client as paho
-import ssl, time, logging
+import ssl, time, logging, redis
 import apu_tcp_service as tcp
 import config_setup as cf
 import binascii, json
@@ -23,6 +22,8 @@ logging.basicConfig(level=logging.DEBUG,
                         filename='service.log'
                         )
 
+rconn = redis.Redis(host='localhost',port=6379, db=0)
+
 def subs(client, userdata, message):
     data = message.payload.decode('utf-8')
 
@@ -40,24 +41,9 @@ def subs(client, userdata, message):
 
     if (' ' in junction_id) == True:
         pass
-
-    client = Client('localhost')
     
     try:
-        # set_memcache(client,junction_id)
-        # print('set memcache')
-        # if client.get('phase_route_'+str(junction_id)):
-        #     client.set('phase_route_'+str(junction_id), cf.phase_route)
-        # if client.get('inp_data_'+str(junction_id)):
-        #     client.set('inp_data_'+str(junction_id), cf.inp_data)
-        # if client.get('phase_info_'+str(junction_id)):
-        #     client.set('phase_info_'+str(junction_id), cf.phase_info)
-        # if client.get('count_data_'+str(junction_id)):
-        #     client.set('count_data_'+str(junction_id), cf.count_data)
-        # if client.get('group_data_'+str(junction_id)):
-        #     client.set('group_data_'+str(junction_id), cf.group_data)
-        # if client.get('faults_'+str(junction_id)):
-        #     client.set('faults_'+str(junction_id), cf.faults)
+        check_redis(junction_id)
             
         tcp.tcp_handle_byte(data)
 
@@ -65,17 +51,54 @@ def subs(client, userdata, message):
         print("Caught error: %s",msg)
         logging.info("Caught error: %s" % msg)
 
-def set_memcache(client,junction_id):
-    client.set('phase_route_'+str(junction_id), cf.phase_route)
-    client.set('inp_data_'+str(junction_id), cf.inp_data)
-    client.set('phase_info_'+str(junction_id), cf.phase_info)
-    client.set('count_data_'+str(junction_id), cf.count_data)
-    client.set('group_data_'+str(junction_id), cf.group_data)
-    client.set('faults_'+str(junction_id), cf.faults)    
+def check_redis(junction_id):
 
+    if rconn.get('phase_route_'+str(junction_id)) == None:
+        rconn.set('phase_route_'+str(junction_id), str(cf.phase_route))
+    if rconn.get('inp_data_'+str(junction_id)) == None:
+        rconn.set('inp_data_'+str(junction_id), str(cf.inp_data))
+    if rconn.get('phase_info_'+str(junction_id)) == None:
+        rconn.set('phase_info_'+str(junction_id), str(cf.phase_info))
+    if rconn.get('count_data_'+str(junction_id)) == None:
+        rconn.set('count_data_'+str(junction_id), str(cf.count_data))
+    if rconn.get('group_data_'+str(junction_id)) == None:
+        rconn.set('group_data_'+str(junction_id), str(cf.group_data))
+    if rconn.get('faults_'+str(junction_id)) == None:
+        rconn.set('faults_'+str(junction_id), str(cf.faults))
+    if rconn.get('inp_difs_'+str(junction_id)) == None:
+        rconn.set('inp_difs_'+str(junction_id), str(cf.inp_difs))
+    if rconn.get('weight_'+str(junction_id)) == None:
+        rconn.set('weight_'+str(junction_id), str(cf.weight))
+    if rconn.get('counters_'+str(junction_id)) == None:
+        rconn.set('counters_'+str(junction_id), str(cf.counters))
 
 def on_connect(client, userdata, flags, rc):
     print("MQTT Connected ")
+    phase = rconn.keys('phase_*')
+    for p in phase: rconn.delete(p)
+
+    inp = rconn.keys('inp_data_*')
+    for i in inp: rconn.delete(i)
+
+    count = rconn.keys('count_data_*')
+    for c in count: rconn.delete(c)
+
+    group = rconn.keys('group_data_*')
+    for g in group: rconn.delete(g)
+
+    faults = rconn.keys('faults_*')
+    for f in faults: rconn.delete(f)
+
+    inp_difs = rconn.keys('inp_difs_*')
+    for inp in inp_difs: rconn.delete(inp)
+
+    weight = rconn.keys('weight_*')
+    for w in weight: rconn.delete(w)
+
+    counters = rconn.keys('counters_*')
+    for cn in counters: rconn.delete(cn)
+
+
     mqttc.subscribe(MQTT_SUB_TOPIC, qos=2)
 
 

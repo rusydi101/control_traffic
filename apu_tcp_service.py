@@ -53,7 +53,7 @@ def tcp_handle_byte(byte_payload):
     junction_id = junction_id.replace('\u0000','')
     # print('deviceid',device_id,' junctionid',junction_id)
     data = binascii.a2b_hex(end)
-    # if junction_id == 'JKR-SEL-006':
+    # if junction_id == 'BILIK-HAFIZ-CPU':
     func_list=[de.group_info,de.input_info,de.phase_info,de.fault_info,de.count_info]
     for i in func_list:
         publish_telemetry(i, data, junction_id)

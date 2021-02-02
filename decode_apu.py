@@ -1,13 +1,13 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import logging, json
+import logging, json, redis
 import config_setup as cf
 import trigger_phase as t
 import mqtt_service as mq
 from ast import literal_eval
-from pymemcache.client.base import Client
-client = Client('localhost')
+
+rconn = redis.Redis(host='localhost',port=6379, db=0)
 
 def group_info(temp):
 
@@ -15,8 +15,8 @@ def group_info(temp):
     junction=temp[8:39].decode('utf-8').replace('\x00','')
     # print(len(temp))
     # print(len(data))
-    mem = literal_eval(client.get('group_data_'+str(junction)).decode('utf-8'))
-    # print('mem',mem)
+    get_redis = literal_eval(rconn.get('group_data_'+str(junction)).decode('utf-8'))
+    # print('get_redis',get_redis)
     valueObj = {}
     values1 = {
         "G_1" : data[0]  & 0x0F,"G_2" : data[0]  >> 4,"G_3" : data[1]  & 0x0F,"G_4" : data[1]  >> 4,
@@ -32,24 +32,24 @@ def group_info(temp):
     #         cf.group_data[values]=values1[values]
     #         valueObj[values] = values1[values]
 
-    for key, value in mem.items():
+    for key, value in get_redis.items():
         if value != values1[key]:
-            mem.update({key:values1[key]})
-            client.set('group_data_'+str(junction),mem)
+            get_redis.update({key:values1[key]})
+            rconn.set('group_data_'+str(junction),str(get_redis))
             valueObj[key] = values1[key]
     
 
     if valueObj != {}:
         logging.debug(valueObj)
 
-        #t.trigger_group(valueObj)
+        t.trigger_group(valueObj,junction)
         return valueObj
 
 def count_info(temp):
 
     data=temp[53:81]
     junction=temp[8:39].decode('utf-8').replace('\x00','')
-    mem = literal_eval(client.get('count_data_'+str(junction)).decode('utf-8'))
+    get_redis = literal_eval(rconn.get('count_data_'+str(junction)).decode('utf-8'))
     valueObj={}
 
     values1 = {
@@ -74,10 +74,10 @@ def count_info(temp):
     #         cf.count_data[values]=values1[values]
     #         valueObj[values] = values1[values]
     
-    for key, value in mem.items():
+    for key, value in get_redis.items():
         if value != values1[key]:
-            mem.update({key:values1[key]})
-            client.set('count_data_'+str(junction),mem)
+            get_redis.update({key:values1[key]})
+            rconn.set('count_data_'+str(junction),str(get_redis))
             valueObj[key] = values1[key]
 
     if valueObj != {}:
@@ -88,8 +88,8 @@ def phase_info(temp):
     data = temp[88:96]
     junction=temp[8:39].decode('utf-8').replace('\x00','')
     
-    p_info = literal_eval(client.get('phase_info_'+str(junction)).decode('utf-8'))
-    p_route = literal_eval(client.get('phase_route_'+str(junction)).decode('utf-8'))
+    p_info = literal_eval(rconn.get('phase_info_'+str(junction)).decode('utf-8'))
+    p_route = literal_eval(rconn.get('phase_route_'+str(junction)).decode('utf-8'))
 
     phase = data[0]
     timing = data[1]
@@ -191,7 +191,7 @@ def phase_info(temp):
     #     valueObj["Route"] = valuei["Route"]
     
     # cf.phase_info = valuei
-    client.set('phase_info_'+str(junction),p_info)
+    rconn.set('phase_info_'+str(junction),str(p_info))
     #print(c.phase_info)
 
     if valueObj != {}:
@@ -201,14 +201,14 @@ def phase_info(temp):
         if cf.PCB_VER == '6':
             mq.client.publish('cam/out', json.dumps(valuei))
 
-        t.trigger_phase(valueObj)
+        t.trigger_phase(valueObj,junction)
         return valueObj
 
 def input_info(temp):
 
     inps = temp[106:112]
     junction=temp[8:39].decode('utf-8').replace('\x00','')
-    mem = literal_eval(client.get('inp_data_'+str(junction)).decode('utf-8'))
+    get_redis = literal_eval(rconn.get('inp_data_'+str(junction)).decode('utf-8'))
     k=[0]*24
 
     # detect
@@ -253,22 +253,22 @@ def input_info(temp):
     #         cf.inp_data[values]=values1[values]
     #         valueObj[values] = values1[values]
 
-    for key, value in mem.items():
+    for key, value in get_redis.items():
         if value != values1[key]:
-            mem.update({key:values1[key]})
-            client.set('inp_data_'+str(junction),mem)
+            get_redis.update({key:values1[key]})
+            rconn.set('inp_data_'+str(junction),str(get_redis))
             valueObj[key] = values1[key]
 
     if valueObj != {}:
         logging.debug(valueObj)
-        t.trigger_input(valueObj)
+        t.trigger_input(valueObj,junction)
         return valueObj
 
 def fault_info(temp):
 
     data5=temp[120:169]
     junction=temp[8:39].decode('utf-8').replace('\x00','')
-    mem = literal_eval(client.get('faults_'+str(junction)).decode('utf-8'))
+    get_redis = literal_eval(rconn.get('faults_'+str(junction)).decode('utf-8'))
     cardFault = {}
     groupFault = {}
 
@@ -279,9 +279,9 @@ def fault_info(temp):
 
         # if cf.faults[ptr] != data5[ptr]:
         #     cf.faults[ptr] = data5[ptr]
-        if mem[ptr] != data5[ptr]:
-            mem[ptr] = data5[ptr]
-            client.set('faults_'+str(junction),mem)
+        if get_redis[ptr] != data5[ptr]:
+            get_redis[ptr] = data5[ptr]
+            rconn.set('faults_'+str(junction),str(get_redis))
             if data5[ptr] & 0x0f == 0x00:
                 cardFault["CFAULT_" + str(i + 1)] = 0
             elif data5[ptr] & 0x0f == 0x01:
@@ -295,9 +295,9 @@ def fault_info(temp):
 
         # if cf.faults[ptr + 4] != data5[ptr + 4]:
             # cf.faults[ptr + 4] = data5[ptr + 4]
-        if mem[ptr + 4] != data5[ptr + 4]:
-            mem[ptr + 4] = data5[ptr + 4]
-            client.set('faults_'+str(junction),mem)
+        if get_redis[ptr + 4] != data5[ptr + 4]:
+            get_redis[ptr + 4] = data5[ptr + 4]
+            rconn.set('faults_'+str(junction),str(get_redis))
             # Group 1 - RED
             if data5[ptr + 4] & 0x01 == 0x01:
                 groupFault["GFAULT_R_" + str(grp)] = 2
@@ -326,9 +326,9 @@ def fault_info(temp):
 
         # if cf.faults[ptr + 5] != data5[ptr + 5]:
         #     cf.faults[ptr + 5] = data5[ptr + 5]
-        if mem[ptr + 5] != data5[ptr + 5]:
-            mem[ptr + 5] = data5[ptr + 5]
-            client.set('faults_'+str(junction),mem)
+        if get_redis[ptr + 5] != data5[ptr + 5]:
+            get_redis[ptr + 5] = data5[ptr + 5]
+            rconn.set('faults_'+str(junction),str(get_redis))
             # Group 1 - RED
             if data5[ptr + 5] & 0x01 == 0x01:
                 groupFault["GFAULT_R_" + str(grp)] = 2
