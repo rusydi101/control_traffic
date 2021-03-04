@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os, signal
-
+import mysql.connector
 #cannot have import logging in this file or any calling logging.info
 CONFIGINI = 'config_file.ini'
 
@@ -10,6 +10,12 @@ try:
     from configparser import ConfigParser
 except ImportError:
     from ConfigParser import ConfigParser  # ver. < 3.0
+
+
+try:
+    mydb = mysql.connector.connect(host='localhost',user='root',password='#traffiC$', database='traffic')
+except Exception as e:
+    print('mysql error',e)
 
 # instantiate
 config = ConfigParser()

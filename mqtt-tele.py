@@ -30,7 +30,7 @@ def subs(client, userdata, message):
     # data = binascii.a2b_hex(data)
     jdata = json.loads(data)
     for key in jdata.keys():
-        if key == "JKR-SEL-001":
+        if key == "JKR-SEL-005":
             print(jdata)
     # print('data',len(data))
 

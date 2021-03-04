@@ -79,7 +79,7 @@ def count_car(flag,data_i,junction):
         if 'Phase' in data_i:
             msg={}
             phase = data_i['Phase']
-            p_index = get_phase_send(phase)
+            p_index = get_phase_send(phase,junction)
             s_index = 'carCount_'+str(p_index)
             msg[s_index] = round(counters[s_index])
             # cf.counters[s_index]=0
@@ -95,11 +95,21 @@ def count_car(flag,data_i,junction):
                 if cf.PCB_VER == '5':
                     mq.mqtts.publish('cam_out',json.dumps(data_i))
 
-def get_phase_send(ph):
+def get_phase_send(ph,junction):
 
     r_phase = ph -1
     if r_phase < 1:
         r_phase= cf.count_phase
+        cursor = cf.mydb.cursor()
+        sql = 'SELECT phasecount FROM Junction WHERE serial LIKE "%'+str(junction)+'%" '
+        cursor.execute(sql)
+        rows = cursor.fetchone()
+        # print(junction,' phase count ====> ',rows[0])
+        cursor.close()
+        if rows[0] is not None:
+            r_phase = rows[0]
+        
+        # print('this ------> ',r_phase)
 
     return r_phase
 

@@ -75,8 +75,8 @@ def publish_telemetry(func, pub_string, junction_id):
         if cf.MQTT_EN=='1':
             try:
                 mqttc.publish(cf.mqtt_pub_tele, json.dumps(data))
-                print(data)
-                # mqttc.loop_start()
+                mqttc.loop_start()
+                # print(data)
             except:
                 logging.info('Failed to publish to broker')
 
